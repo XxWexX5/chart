@@ -9,13 +9,21 @@ import {
   Tooltip,
   Legend,
   ArcElement,
+  type Chart as ChartType,
+  type ChartData,
+  type ChartOptions,
+  type Plugin,
+  type LegendItem,
+  type TooltipItem,
+  type ActiveElement,
+  type ChartEvent,
 } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 
-const centerTextPlugin = {
+const centerTextPlugin: Plugin<'doughnut'> = {
   id: 'centerText',
-  beforeDraw: (chart: any) => {
-    const { ctx, chartArea } = chart;
+  beforeDraw: (chart) => {
+    const { ctx, chartArea } = chart as ChartType<'doughnut'>;
     
     if (!chartArea) return;
     
@@ -52,7 +60,7 @@ ChartJS.register(
 );
 
 const ChartComponent: React.FC = () => {
-  const data = {
+  const data: ChartData<'doughnut'> = {
     labels: ['Próximas do vencimento', 'Vencidas recentemente', 'Vencidas 6 a 30 dias', 'Vencidas 31 a 60 dias', 'Acimas de 61 dias.'],
     datasets: [
       {
@@ -65,7 +73,6 @@ const ChartComponent: React.FC = () => {
           '#035847',
         ],
         borderWidth: 0,
-        cutout: '70%',
       },
     ],
   };
@@ -78,23 +85,27 @@ const ChartComponent: React.FC = () => {
     '/acima-61-dias'
   ];
 
-  const options = {
+  const options: ChartOptions<'doughnut'> = {
     responsive: true,
     maintainAspectRatio: false,
-    onClick: (event: any, elements: any) => {
+    cutout: '70%',
+    onClick: (
+      _event: ChartEvent,
+      elements: ActiveElement[],
+      _chart: ChartType<'doughnut'>
+    ) => {
       if (elements.length > 0) {
         const index = elements[0].index;
         const url = urls[index];
         window.open(url, '_blank');
       }
     },
-    onHover: (event: any, elements: any) => {
-      const canvas = event.native.target;
-      if (elements.length > 0) {
-        canvas.style.cursor = 'pointer';
-      } else {
-        canvas.style.cursor = 'default';
-      }
+    onHover: (
+      _event: ChartEvent,
+      elements: ActiveElement[],
+      chart: ChartType<'doughnut'>
+    ) => {
+      chart.canvas.style.cursor = elements.length > 0 ? 'pointer' : 'default';
     },
     plugins: {
       legend: {
@@ -108,22 +119,22 @@ const ChartComponent: React.FC = () => {
             family: 'Inter, sans-serif',
           },
           textAlign: 'left' as const,
-          generateLabels: (chart: any) => {
-            const data = chart.data;
-            if (data.labels.length && data.datasets.length) {
-              return data.labels.map((label: string, i: number) => {
-                const dataset = data.datasets[0];
-                const value = dataset.data[i];
-                return {
-                  text: `${label}: ${value}`,
-                  fillStyle: dataset.backgroundColor[i],
-                  strokeStyle: dataset.backgroundColor[i],
-                  lineWidth: 0,
-                  pointStyle: 'rect',
-                  hidden: false,
-                  index: i,
-                };
-              });
+          generateLabels: (chart): LegendItem[] => {
+            const chartTyped = chart as ChartType<'doughnut'>;
+            const dataLocal = chartTyped.data;
+            if (dataLocal.labels && dataLocal.labels.length && dataLocal.datasets.length) {
+              const dataset = dataLocal.datasets[0];
+              const values = dataset.data as number[];
+              const colors = dataset.backgroundColor as string[];
+              return (dataLocal.labels as string[]).map((label: string, i: number) => ({
+                text: `${label}: ${values[i]}`,
+                fillStyle: colors[i],
+                strokeStyle: colors[i],
+                lineWidth: 0,
+                pointStyle: 'rect',
+                hidden: false,
+                index: i,
+              }));
             }
             return [];
           },
@@ -131,7 +142,7 @@ const ChartComponent: React.FC = () => {
       },
       tooltip: {
         callbacks: {
-          label: (context: any) => {
+          label: (context: TooltipItem<'doughnut'>) => {
             const label = context.label || '';
             const value = context.parsed;
             
